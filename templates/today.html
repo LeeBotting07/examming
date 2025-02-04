@@ -24,8 +24,11 @@
             <div class="card-body">
                 <h5 class="card-title"><strong>Condition:</strong> {{ weather.weather[0].description }}</h5>
                 <p class="card-text"><strong>Temperature:</strong> {{ weather.main.temp }}°C</p>
+                <p class="card-text"><strong>Feels Like:</strong> {{ weather.main.feels_like }}°C</p>
                 <p class="card-text"><strong>Humidity:</strong> {{ weather.main.humidity }}%</p>
+                <p class="card-text"><strong>Pressure:</strong> {{ weather.main.pressure }} hPa</p>
                 <p class="card-text"><strong>Wind Speed:</strong> {{ weather.wind.speed }} m/s</p>
+                <p class="card-text"><strong>Visibility:</strong> {{ weather.visibility / 1000 }} km</p>
                 <img src="https://openweathermap.org/img/wn/{{ weather.weather[0].icon }}@2x.png" alt="Weather Icon" class="img-fluid">
             </div>
         </div>
@@ -57,4 +60,37 @@
         <div class="alert alert-warning text-center">Air quality data is not available at the moment.</div>
         {% endif %}
     </div>
+
+    <!-- AI Output Section -->
+    {% if ai_message %}
+    <div class="text-center mt-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3 class="card-title">AI Message</h3>
+                <p class="card-text"><strong>{{ ai_message.message }}</strong></p>
+                <p class="card-text">{{ ai_message.recommendation }}</p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Funny CPU/Memory Effect Section -->
+    <div class="text-center mt-4">
+        <div id="funny-effect" class="alert alert-info" style="display: none;">
+            <h3>🤖 Processing Weather Data...</h3>
+            <p>Your computer is working hard to fetch the weather! 💻🔥</p>
+        </div>
+    </div>
+
+    <!-- JavaScript to Show Funny Effect -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.querySelector('form');
+            const funnyEffect = document.getElementById('funny-effect');
+
+            form.addEventListener('submit', function() {
+                funnyEffect.style.display = 'block'; // Show the funny effect
+            });
+        });
+    </script>
 {% endblock %}

