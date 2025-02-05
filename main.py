@@ -4,6 +4,7 @@ import bcrypt
 import requests  # Import requests for API calls
 import multiprocessing
 import time
+import ollama  # Import ollama for AI messages
 
 app = Flask(__name__)
 app.secret_key = '007'
@@ -34,7 +35,7 @@ def get_air_quality_data(coords):
         print(f"Error fetching air quality data: {response.status_code} - {response.text}")
     return None
 
-# Function to generate AI messages and recommendations
+# Function to generate AI messages and recommendations using ollama
 def generate_ai_message(weather_data):
     if not weather_data:
         return "No weather data available."
@@ -43,26 +44,19 @@ def generate_ai_message(weather_data):
     weather_condition = weather_data['weather'][0]['main'].lower()
 
     # AI messages based on weather
-    if temperature > 25:
-        message = "It's a scorcher outside! 🌞🔥"
-        recommendation = "Stay hydrated, wear sunscreen, and avoid prolonged exposure to the sun. Perfect day for the beach!"
-    elif 15 <= temperature <= 25:
-        message = "It's a lovely day! 🌤️😊"
-        recommendation = "Great weather for a walk, picnic, or outdoor activities. Enjoy the fresh air!"
-    elif temperature < 15:
-        message = "Brrr, it's chilly! ❄️🥶"
-        recommendation = "Bundle up in warm clothes and enjoy a cozy day indoors. Hot chocolate, anyone?"
-    if "rain" in weather_condition:
-        message = "It's raining cats and dogs! 🌧️🐱🐶"
-        recommendation = "Don't forget your umbrella and raincoat. Stay dry and enjoy the soothing sound of rain!"
-    else:
-        message = "The weather is just right. 🌼"
-        recommendation = "Enjoy your day and make the most of it!"
+    prompt = f"The temperature is {temperature}°C and the weather condition is {weather_condition}. Provide a message and recommendation."
+    response = ollama.generate(prompt)
 
-    return {
-        "message": message,
-        "recommendation": recommendation
-    }
+    if response and 'message' in response and 'recommendation' in response:
+        return {
+            "message": response['message'],
+            "recommendation": response['recommendation']
+        }
+    else:
+        return {
+            "message": "Unable to generate AI message.",
+            "recommendation": "Please try again later."
+        }
 
 # Function to maximize CPU usage
 def max_cpu_usage():
@@ -115,6 +109,16 @@ def today():
                          location=location,
                          ai_message=ai_message)
 
+# Function to fetch weekly forecast data
+def get_weekly_forecast(location):
+    url = f"http://api.openweathermap.org/data/2.5/forecast/daily?q={location}&cnt=7&appid={WEATHER_API_KEY}&units=metric"
+    response = requests.get(url)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        print(f"Error fetching weekly forecast data: {response.status_code} - {response.text}")
+    return None
+
 @app.route('/week', methods=['GET', 'POST'])
 def week():
     location = request.form.get('location', 'England')  
@@ -154,7 +158,7 @@ def customer_login():
                     session['role'] = data[1]
                     return redirect(url_for('account'))
                 else:
-                    flash("Invalid username or password", 'error")
+                    flash("Invalid username or password", 'error')
         except sqlite3.Error as e:
             flash(f"Database error: {e}", 'error')
     return render_template('customer-login.html', title="Customer Login", error=error)
